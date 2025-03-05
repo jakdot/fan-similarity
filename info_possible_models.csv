@@ -1,0 +1,4 @@
+name,training_data,training_info,dimensions,link,paper
+fasttext_cbow,"common crawl, wikipedia","continuous bag of words, position-weights, character n-grams of length 5, window size of 5, 10 negatives",300,https://fasttext.cc/docs/en/crawl-vectors.html,https://doi.org/10.48550/arXiv.1802.06893
+fasttext_skipgram,wikipedia,"skipgram, 5 negatives, more info in paper",300,https://fasttext.cc/docs/en/pretrained-vectors.html,https://arxiv.org/abs/1607.04606
+word2vec,Dutch CoNLL17 corpus,"continuous skipgram, window size 10",100,http://vectors.nlpl.eu/repository/#,https://aclanthology.org/W17-0237

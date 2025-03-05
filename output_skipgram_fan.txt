@@ -1,0 +1,358 @@
+Calculated pmi
+Fan 2:  1.791759469228055 Fan 4:  1.0986122886681098
+================
+N_EPOCH:  100
+DIM:  30
+Epoch 100/100 - Loss: 1.8818
+Fan 2:  0.2895916886627674 Fan 4 : -0.3248043740168214
+Shifted: Fan 2:  1.8990296010968677 Fan 4 : 1.284633538417279
+N_EPOCH:  100
+DIM:  30
+Epoch 100/100 - Loss: 1.6588
+Fan 2:  0.3004835210740566 Fan 4 : -0.4211295912973583
+Shifted: Fan 2:  1.909921433508157 Fan 4 : 1.188308321136742
+N_EPOCH:  100
+DIM:  30
+Epoch 100/100 - Loss: 1.1678
+Fan 2:  0.6585717871785164 Fan 4 : -0.2269316492602229
+Shifted: Fan 2:  2.268009699612617 Fan 4 : 1.3825062631738774
+N_EPOCH:  100
+DIM:  50
+Epoch 100/100 - Loss: 1.3029
+Fan 2:  0.7428408600389957 Fan 4 : -0.38510480197146535
+Shifted: Fan 2:  2.3522787724730962 Fan 4 : 1.224333110462635
+N_EPOCH:  100
+DIM:  50
+Epoch 100/100 - Loss: 1.6403
+Fan 2:  0.49335876293480396 Fan 4 : -0.3021219214424491
+Shifted: Fan 2:  2.1027966753689045 Fan 4 : 1.3073159909916512
+N_EPOCH:  100
+DIM:  50
+Epoch 100/100 - Loss: 2.1042
+Fan 2:  0.30769775714725256 Fan 4 : -0.4201707895845175
+Shifted: Fan 2:  1.9171356695813528 Fan 4 : 1.1892671228495828
+N_EPOCH:  100
+DIM:  100
+Epoch 100/100 - Loss: 0.9583
+Fan 2:  -0.15611931681632996 Fan 4 : -0.2235701516037807
+Shifted: Fan 2:  1.4533185956177703 Fan 4 : 1.3858677608303196
+N_EPOCH:  100
+DIM:  100
+Epoch 100/100 - Loss: 1.5477
+Fan 2:  0.1584622166119516 Fan 4 : -0.22617377759888768
+Shifted: Fan 2:  1.7679001290460519 Fan 4 : 1.3832641348352126
+N_EPOCH:  100
+DIM:  100
+Epoch 100/100 - Loss: 0.9844
+Fan 2:  1.4436599016189575 Fan 4 : -0.34593829954974353
+Shifted: Fan 2:  3.053097814053058 Fan 4 : 1.2634996128843567
+N_EPOCH:  100
+DIM:  300
+Epoch 100/100 - Loss: 1.2940
+Fan 2:  0.5993215776979923 Fan 4 : 0.18698225927073509
+Shifted: Fan 2:  2.208759490132093 Fan 4 : 1.7964201717048354
+N_EPOCH:  100
+DIM:  300
+Epoch 100/100 - Loss: 0.8984
+Fan 2:  0.8438652604818344 Fan 4 : -0.3163930712034926
+Shifted: Fan 2:  2.453303172915935 Fan 4 : 1.2930448412306077
+N_EPOCH:  100
+DIM:  300
+Epoch 100/100 - Loss: 1.5874
+Fan 2:  -0.25216716155409813 Fan 4 : -0.29487635660916567
+Shifted: Fan 2:  1.3572707508800022 Fan 4 : 1.3145615558249346
+++++++++++++++++++++
+FAN 2:  {30: 2.025653578072547, 50: 2.1240703724744514, 100: 2.09143884623896, 300: 2.0064444713093432}
+FAN 4:  {30: 1.2851493742426328, 50: 1.2403054081012896, 100: 1.344210502849963, 300: 1.4680088562534592}
+This should match the calculated pmi with around 10% error.
+The match is a bit better if you use no noise distribution.
+++++++++++++++++++++
+N_EPOCH:  10
+DIM:  5
+Failure for recall for zwembad
+Failure for recall for kroeg
+Failure for recall for winkel
+Failure for recall for park
+Failure for recall for dorp
+Failure for recall for bioscoop
+Failure for recall for huis
+Failure for recall for ravijn
+Fan 2:  -0.08868091367185116 Fan 4 : -0.580384443514049
+Shifted: Fan 2:  1.5207569987622491 Fan 4 : 1.0290534689200512
+N_EPOCH:  10
+DIM:  5
+Failure for recall for zwembad
+Failure for recall for kroeg
+Failure for recall for winkel
+Failure for recall for park
+Failure for recall for dorp
+Failure for recall for bioscoop
+Failure for recall for huis
+Failure for recall for ravijn
+Fan 2:  0.512633303180337 Fan 4 : -0.2567148124217056
+Shifted: Fan 2:  2.1220712156144375 Fan 4 : 1.3527231000123947
+N_EPOCH:  10
+DIM:  5
+Failure for recall for zwembad
+Failure for recall for kroeg
+Failure for recall for winkel
+Failure for recall for park
+Failure for recall for dorp
+Failure for recall for bioscoop
+Failure for recall for huis
+Failure for recall for ravijn
+Fan 2:  0.03868126170709729 Fan 4 : 0.03862412087619305
+Shifted: Fan 2:  1.6481191741411976 Fan 4 : 1.6480620333102933
+N_EPOCH:  20
+DIM:  5
+Failure for recall for zwembad
+Failure for recall for kroeg
+Failure for recall for winkel
+Failure for recall for park
+Failure for recall for dorp
+Failure for recall for bioscoop
+Failure for recall for huis
+Failure for recall for ravijn
+Fan 2:  -0.25818372913636267 Fan 4 : -0.9399774111807346
+Shifted: Fan 2:  1.3512541832977376 Fan 4 : 0.6694605012533656
+N_EPOCH:  20
+DIM:  5
+Failure for recall for zwembad
+Failure for recall for kroeg
+Failure for recall for winkel
+Failure for recall for park
+Failure for recall for dorp
+Failure for recall for bioscoop
+Failure for recall for huis
+Failure for recall for ravijn
+Fan 2:  0.2879727380350232 Fan 4 : -0.5559319630265236
+Shifted: Fan 2:  1.8974106504691235 Fan 4 : 1.0535059494075767
+N_EPOCH:  20
+DIM:  5
+Failure for recall for zwembad
+Failure for recall for kroeg
+Failure for recall for winkel
+Failure for recall for park
+Failure for recall for dorp
+Failure for recall for bioscoop
+Failure for recall for huis
+Failure for recall for ravijn
+Fan 2:  -0.16506726993247867 Fan 4 : -0.29063328041229397
+Shifted: Fan 2:  1.4443706425016216 Fan 4 : 1.3188046320218063
+N_EPOCH:  30
+DIM:  5
+Failure for recall for zwembad
+Failure for recall for kroeg
+Failure for recall for winkel
+Failure for recall for park
+Failure for recall for dorp
+Failure for recall for bioscoop
+Failure for recall for huis
+Failure for recall for ravijn
+Fan 2:  -0.5880674906075001 Fan 4 : -1.3482092469930649
+Shifted: Fan 2:  1.0213704218266002 Fan 4 : 0.2612286654410354
+N_EPOCH:  30
+DIM:  5
+Failure for recall for zwembad
+Failure for recall for kroeg
+Failure for recall for winkel
+Failure for recall for park
+Failure for recall for dorp
+Failure for recall for bioscoop
+Failure for recall for huis
+Failure for recall for ravijn
+Fan 2:  -0.15899454802274704 Fan 4 : -0.9735928028821945
+Shifted: Fan 2:  1.4504433644113532 Fan 4 : 0.6358451095519058
+N_EPOCH:  30
+DIM:  5
+Failure for recall for zwembad
+Failure for recall for kroeg
+Failure for recall for winkel
+Failure for recall for park
+Failure for recall for dorp
+Failure for recall for bioscoop
+Failure for recall for huis
+Failure for recall for ravijn
+Fan 2:  -0.5689095370471478 Fan 4 : -0.8113559721969068
+Shifted: Fan 2:  1.0405283753869525 Fan 4 : 0.7980819402371935
+N_EPOCH:  10
+DIM:  10
+Failure for recall for zwembad
+Failure for recall for kroeg
+Failure for recall for winkel
+Failure for recall for park
+Failure for recall for dorp
+Failure for recall for bioscoop
+Failure for recall for huis
+Failure for recall for ravijn
+Fan 2:  0.18329624272882938 Fan 4 : -0.04324684618040919
+Shifted: Fan 2:  1.7927341551629297 Fan 4 : 1.566191066253691
+N_EPOCH:  10
+DIM:  10
+Failure for recall for zwembad
+Failure for recall for kroeg
+Failure for recall for winkel
+Failure for recall for park
+Failure for recall for dorp
+Failure for recall for bioscoop
+Failure for recall for huis
+Failure for recall for ravijn
+Fan 2:  0.03379573440179229 Fan 4 : -0.1864155454095453
+Shifted: Fan 2:  1.6432336468358926 Fan 4 : 1.423022367024555
+N_EPOCH:  10
+DIM:  10
+Failure for recall for zwembad
+Failure for recall for kroeg
+Failure for recall for winkel
+Failure for recall for park
+Failure for recall for dorp
+Failure for recall for bioscoop
+Failure for recall for huis
+Failure for recall for ravijn
+Fan 2:  -0.04152944567613304 Fan 4 : -0.07068938529118896
+Shifted: Fan 2:  1.5679084667579672 Fan 4 : 1.5387485271429113
+N_EPOCH:  20
+DIM:  10
+Failure for recall for zwembad
+Failure for recall for kroeg
+Failure for recall for winkel
+Failure for recall for park
+Failure for recall for dorp
+Failure for recall for bioscoop
+Failure for recall for huis
+Failure for recall for ravijn
+Fan 2:  0.020751542411744595 Fan 4 : -0.4172192644327879
+Shifted: Fan 2:  1.6301894548458449 Fan 4 : 1.1922186480013124
+N_EPOCH:  20
+DIM:  10
+Failure for recall for zwembad
+Failure for recall for kroeg
+Failure for recall for winkel
+Failure for recall for park
+Failure for recall for dorp
+Failure for recall for bioscoop
+Failure for recall for huis
+Failure for recall for ravijn
+Fan 2:  -0.11247519962489605 Fan 4 : -0.65516924764961
+Shifted: Fan 2:  1.4969627128092042 Fan 4 : 0.9542686647844902
+N_EPOCH:  20
+DIM:  10
+Failure for recall for zwembad
+Failure for recall for kroeg
+Failure for recall for winkel
+Failure for recall for park
+Failure for recall for dorp
+Failure for recall for bioscoop
+Failure for recall for huis
+Failure for recall for ravijn
+Fan 2:  -0.21498666587285697 Fan 4 : -0.3709494557697326
+Shifted: Fan 2:  1.3944512465612433 Fan 4 : 1.2384884566643677
+N_EPOCH:  30
+DIM:  10
+Failure for recall for zwembad
+Failure for recall for winkel
+Failure for recall for dorp
+Failure for recall for bioscoop
+Failure for recall for huis
+Failure for recall for ravijn
+Fan 2:  -0.35461142752319574 Fan 4 : -0.9494006335735321
+Shifted: Fan 2:  1.2548264849109045 Fan 4 : 0.6600372788605682
+N_EPOCH:  30
+DIM:  10
+Failure for recall for zwembad
+Failure for recall for kroeg
+Failure for recall for winkel
+Failure for recall for park
+Failure for recall for dorp
+Failure for recall for bioscoop
+Failure for recall for huis
+Failure for recall for ravijn
+Fan 2:  -0.4821439040824771 Fan 4 : -1.0683545041829348
+Shifted: Fan 2:  1.1272940083516232 Fan 4 : 0.5410834082511655
+N_EPOCH:  30
+DIM:  10
+Failure for recall for zwembad
+Failure for recall for kroeg
+Failure for recall for winkel
+Failure for recall for park
+Failure for recall for dorp
+Failure for recall for bioscoop
+Failure for recall for huis
+Fan 2:  -0.5205633982550353 Fan 4 : -0.7790706307860091
+Shifted: Fan 2:  1.088874514179065 Fan 4 : 0.8303672816480911
+N_EPOCH:  10
+DIM:  50
+Failure for recall for zwembad
+Failure for recall for kroeg
+Failure for recall for winkel
+Failure for recall for park
+Failure for recall for dorp
+Failure for recall for bioscoop
+Failure for recall for huis
+Failure for recall for ravijn
+Fan 2:  0.8416579803451896 Fan 4 : -0.20235142018646002
+Shifted: Fan 2:  2.45109589277929 Fan 4 : 1.4070864922476403
+N_EPOCH:  10
+DIM:  50
+Failure for recall for zwembad
+Failure for recall for kroeg
+Failure for recall for winkel
+Failure for recall for park
+Failure for recall for bioscoop
+Failure for recall for huis
+Failure for recall for ravijn
+Fan 2:  -0.575054480927065 Fan 4 : -0.565807952927571
+Shifted: Fan 2:  1.0343834315070353 Fan 4 : 1.0436299595065293
+N_EPOCH:  10
+DIM:  50
+Failure for recall for zwembad
+Failure for recall for kroeg
+Failure for recall for winkel
+Failure for recall for park
+Failure for recall for dorp
+Failure for recall for bioscoop
+Failure for recall for huis
+Failure for recall for ravijn
+Fan 2:  0.08043773239478469 Fan 4 : -0.3431220892816782
+Shifted: Fan 2:  1.689875644828885 Fan 4 : 1.266315823152422
+N_EPOCH:  20
+DIM:  50
+Failure for recall for zwembad
+Failure for recall for winkel
+Failure for recall for park
+Failure for recall for bioscoop
+Failure for recall for huis
+Fan 2:  0.2752852067351341 Fan 4 : -0.4644816122017801
+Shifted: Fan 2:  1.8847231191692344 Fan 4 : 1.1449563002323202
+N_EPOCH:  20
+DIM:  50
+Failure for recall for zwembad
+Failure for recall for winkel
+Failure for recall for bioscoop
+Failure for recall for ravijn
+Fan 2:  -0.1870700903236866 Fan 4 : -0.633398013189435
+Shifted: Fan 2:  1.4223678221104137 Fan 4 : 0.9760398992446653
+N_EPOCH:  20
+DIM:  50
+Failure for recall for zwembad
+Failure for recall for kroeg
+Failure for recall for winkel
+Failure for recall for park
+Failure for recall for dorp
+Failure for recall for ravijn
+Fan 2:  -0.008349301293492317 Fan 4 : -0.544282564194873
+Shifted: Fan 2:  1.601088611140608 Fan 4 : 1.0651553482392273
+N_EPOCH:  30
+DIM:  50
+Failure for recall for winkel
+Fan 2:  0.2585319997742772 Fan 4 : -0.40352608676766977
+Shifted: Fan 2:  1.8679699122083775 Fan 4 : 1.2059118256664305
+N_EPOCH:  30
+DIM:  50
+Fan 2:  0.29431302251759917 Fan 4 : -0.4129812775645405
+Shifted: Fan 2:  1.9037509349516994 Fan 4 : 1.1964566348695598
+N_EPOCH:  30
+DIM:  50
+Failure for recall for kroeg
+Fan 2:  0.1692271766369231 Fan 4 : -0.41209792299196124
+Shifted: Fan 2:  1.7786650890710234 Fan 4 : 1.197339989442139
