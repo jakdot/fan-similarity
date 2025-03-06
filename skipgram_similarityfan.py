@@ -184,7 +184,7 @@ def estimate_activation(lists_checked, epochs, droprate=0.0):
     fan2_final = []
     fan4_final = []
 
-    # check first the fan without any training
+    # for each list, calcualte fan2 and fan4 activations
     for i in lists_checked:
 
         # fan2 and 4 for each case (=stimuli list)
@@ -240,7 +240,7 @@ testing = pd.read_csv("online_testing_all.csv")
 # the model downloaded from https://aclanthology.org/W17-0237 (Dutch CoNLL17 corpus, skipgram)
 word_vectors = KeyedVectors.load_word2vec_format("39/model.bin", binary=True, limit=700000)  # Loads only top 700,000 words (covers everything in the fan experiment)
 
-# select stimuli lists that manipulate loc
+# select stimuli lists that manipulate loc or pers
 if LOCATION_FAN:
     lists_checked = [i for i in range(1, 60, 2)]
     csv_filename = "similarityfan_loc.csv"
