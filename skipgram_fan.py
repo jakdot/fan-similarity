@@ -4,10 +4,12 @@ Training and testing skipgram for fan experiments: experiment 1.
 
 import random
 from collections import Counter
+import os
 
 import torch
 from torch import optim
 import numpy as np
+import pandas as pd
 
 from skipgram import SkipGramNeg, NegativeSamplingLoss
 
@@ -127,10 +129,14 @@ def check_embeddings(model, stimuli_list, vocab_to_int):
                 # calculate dot product
                 complete_check[stimulus].update({k: float(np.matmul(contexts[vocab_to_int[k]], word_vec).flatten())})
 
+    mistakes = 0
+
     for x in complete_check:
         # we check if the top n(=2,4) words are the words that should be recalled
         if not set(words_dict[x]) == set(list(zip(*sorted(complete_check[x].items(), key=lambda item: item[1], reverse=True)))[0][:len(words_dict[x])]):
+            mistakes += len(set(list(zip(*sorted(complete_check[x].items(), key=lambda item: item[1], reverse=True)))[0][:len(words_dict[x])]).difference(set(words_dict[x])))
             print("Failure for recall for", x)
+            words_dict.pop(x) # we remove that element for stimulus calculation since it was not acquired properly
             #return (np.nan, np.nan) # uncomment if you want to stop checking whenever there is a mistake in recall
     
     # we now only care about the actual fan - so the context words that do match the recall
@@ -167,48 +173,65 @@ def check_embeddings(model, stimuli_list, vocab_to_int):
         else:
             raise Exception("Wrong number of fan")
 
-    return np.array(list(fan2.values())).mean(), np.array(list(fan4.values())).mean()
+    return np.array(list(fan2.values())).mean(), np.array(list(fan4.values())).mean(), mistakes
 
 def estimate_activation(dims, epochs):
     """
     Empirically estimate activation (=pmi).
-    :dims list of vector dimensions
+    :dims list of vector dimensions (you can give multiple dimensions in a list)
     :epochs list of number of epochs used in training
     """
-    stored_fan2 = {x: [] for x in dims}
-    stored_fan4 = {x: [] for x in dims}
+    stored_fan2 = {x: {epoch: [] for epoch in epochs} for x in dims}
+    stored_fan4 = {x: {epoch: [] for epoch in epochs} for x in dims}
+    mistakes_final = {x: {epoch: [] for epoch in epochs} for x in dims}
+
     for dim in stored_fan2:
         for n_epochs in epochs:
             for seed in [31, 37, 42]:
                 torch.manual_seed(seed)
-                torch.cuda.manual_seed(seed)
+                #torch.cuda.manual_seed(seed) # cuda not needed - a small model
                 random.seed(seed)
                 print("N_EPOCH: ", n_epochs)
                 print("DIM: ", dim)
                 model, stimuli_list, vocab_to_int, int_to_vocab = train_skipgram(n_epochs, dim)
-                fan2, fan4 = check_embeddings(model, stimuli_list, vocab_to_int)
+                fan2, fan4, mistakes = check_embeddings(model, stimuli_list, vocab_to_int)
                 # print estimated fan 2 and 4 per cycle
                 print("Fan 2: ", fan2, "Fan 4 :", fan4)
                 print("Shifted: Fan 2: ", fan2 + np.log(5), "Fan 4 :", fan4 + np.log(5))
-                stored_fan2[dim].append(fan2 + np.log(5))
-                stored_fan4[dim].append(fan4 + np.log(5))
+                stored_fan2[dim][n_epochs].append(fan2 + np.log(5))
+                stored_fan4[dim][n_epochs].append(fan4 + np.log(5))
+                mistakes_final[dim][n_epochs].append(mistakes)
 
-    return stored_fan2, stored_fan4
+    return stored_fan2, stored_fan4, mistakes_final
 
 # Calculated pmi
 print("Calculated pmi")
 print("Fan 2: ", np.log(1 * 24/(2*2)), "Fan 4: ", np.log(1 * 24/(2*4)))
 print("================")
 
-stored_fan2, stored_fan4 = estimate_activation([30, 50, 100, 300], [100])
+stored_fan2, stored_fan4, mistakes_final = estimate_activation([100], [x for x in range(20, 30)]) # we estimate activation in 100-dim vectors; and for 20, 21, ... 30 epochs
 
 print("++++++++++++++++++++")
-print("FAN 2: ", {x: sum(stored_fan2[x])/len(stored_fan2[x]) for x in stored_fan2})
-print("FAN 4: ", {x: sum(stored_fan4[x])/len(stored_fan4[x]) for x in stored_fan4})
+for dim in mistakes_final:
+    print("FAN 2: ", dim, {x: np.array(stored_fan2[dim][x]).mean() for x in stored_fan2[dim]})
+    print("FAN 2: ", dim, {x: np.array(stored_fan2[dim][x]).std() for x in stored_fan2[dim]})
+    print("FAN 4: ", dim, {x: np.array(stored_fan4[dim][x]).mean() for x in stored_fan4[dim]})
+    print("FAN 4: ", dim, {x: np.array(stored_fan4[dim][x]).std() for x in stored_fan4[dim]})
+    print("MISTAKES: ", dim, {x: np.array(mistakes_final[dim][x]).mean() for x in mistakes_final[dim]})
+    print("MISTAKES: ", dim, {x: np.array(mistakes_final[dim][x]).std() for x in mistakes_final[dim]})
 print("This should match the calculated pmi with around 10% error.")
-print("The match is a bit better if you use no noise distribution.")
+print("The match is a bit better if you do not use noise distribution.")
 print("++++++++++++++++++++")
 
-# Some more explorations -- fewer epochs, fewer dims
-estimate_activation([5, 10, 50], [10, 20, 30])
+# Some more explorations -- fewer dims, fewer epochs
+# estimate_activation([5, 10, 50], [10, 20, 30])
 
+dim = 100
+
+df = pd.DataFrame({'Epochs': stored_fan2[dim].keys(), 'Fan2': {x: np.array(stored_fan2[dim][x]).mean() for x in stored_fan2[dim]}.values(), 'Fan2-std': {x: np.array(stored_fan2[dim][x]).std() for x in stored_fan2[dim]}.values(), 'Fan4': {x: np.array(stored_fan4[dim][x]).mean() for x in stored_fan4[dim]}.values(), 'Fan4-std': {x: np.array(stored_fan4[dim][x]).std() for x in stored_fan4[dim]}.values(), 'Mistakes': {x: np.array(mistakes_final[dim][x]).mean() for x in mistakes_final[dim]}.values()})
+
+os.makedirs("csv_files", exist_ok=True)
+csv_filename = "csv_files/basic_fan.csv"
+file_exists = os.path.exists(csv_filename)
+
+df.to_csv(csv_filename, mode='a', header=not file_exists, index=False)

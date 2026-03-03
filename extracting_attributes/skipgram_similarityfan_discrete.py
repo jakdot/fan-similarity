@@ -1,20 +1,23 @@
 """
-Calculating activation based on discretized word-vector values for fan experiments: experiment 2.
+Calculating activation based on binary semantic attributes for fan experiments: experiment 2.
+
+Modified to use attributes.npy instead of word2vec embeddings.
 """
 
 import os
 from collections import Counter
 
+from numpy.lib import diag
+
 import pandas as pd
-from gensim.models import KeyedVectors
 import numpy as np
 
 #specify whether fan for location manipulation should be modeled (using stimuli sets in which location fan is manipulated are used) or person fan shuld be modeled
 LOCATION_FAN = True
 #LOCATION_FAN = False # this will calculate person fan
 
-def prepare_stim_embeddings(original_list, word_vectors):
-    
+def prepare_stim_embeddings(original_list, attributes_dict):
+
     # we create a stimuli_list out of original_list (only caring about Person, Location, Article (het/de) belonging to the location;
     if LOCATION_FAN:
         stimuli_list = [f"{s.split()[1]} {s.split()[-1]} {s.split()[-2]}" for s in original_list if len(s.split()) >= 3]
@@ -28,16 +31,20 @@ def prepare_stim_embeddings(original_list, word_vectors):
         words = [s.split()[1] for s in original_list if len(s.split()) >= 3]
     vocab_to_int, int_to_vocab = create_lookup_tables(words)
 
-    # in_embeddings are discretized word2vec embeddings: they store 1 for the first 100 elements when that element was greater than 0, and 1 for the following 100 elements when that element was smaller than 0.
-    in_embeddings = np.array([word_vectors[int_to_vocab[idx]] for idx in int_to_vocab], dtype=np.float64)
+    # in_embeddings now uses binary attributes from attributes.npy
+    # attributes are +1/-1, convert to binary representation: +1 -> (1,0), -1 -> (0,1)
+    in_embeddings_list = []
+    for idx in int_to_vocab:
+        word = int_to_vocab[idx]
+        attr = attributes_dict[word]  # Will error if word not found
+        in_embeddings1 = (attr > 0.001).astype(int)
+        in_embeddings2 = (attr < -0.001).astype(int)
+        merged = np.hstack((in_embeddings1, in_embeddings2))
+        in_embeddings_list.append(merged)
 
-    in_embeddings1 = (in_embeddings > 0).astype(int)
+    in_embeddings = np.array(in_embeddings_list, dtype=np.float64)
 
-    in_embeddings2 = (in_embeddings < 0).astype(int)
-
-    merged = np.hstack((in_embeddings1, in_embeddings2))
-
-    return merged, stimuli_list, vocab_to_int, int_to_vocab
+    return in_embeddings, stimuli_list, vocab_to_int, int_to_vocab
 
 def create_lookup_tables(words):
     word_counts = Counter(words)
@@ -70,8 +77,7 @@ def check_embeddings(embeddings, stimuli_list, vocab_to_int, fan2_list, fan4_lis
 
     df = pd.DataFrame({'Word': fan.keys(), 'ACT_R_activation': fan.values(), 'Location_fan': [LOCATION_FAN for _ in range(len(fan))], 'List': [list_number for _ in range(len(fan))]})
 
-    os.makedirs("csv_files", exist_ok=True)
-    csv_filename = "csv_files/actr_activations_perword.csv"
+    csv_filename = "actr_activations_perword.csv"
 
     file_exists = os.path.exists(csv_filename)
 
@@ -93,13 +99,13 @@ def check_embeddings(embeddings, stimuli_list, vocab_to_int, fan2_list, fan4_lis
             #print("Fan2")
             #print(x)
             #print(fan[x])
-            fan2[x] = fan[x]
+            fan2[x] = fan[x].mean()
             #print(fan2[x])
         elif x in fan4:
             #print("Fan4")
             #print(x)
             #print(fan[x])
-            fan4[x] = fan[x]
+            fan4[x] = fan[x].mean()
             #print(fan4[x])
         else:
             raise Exception("Wrong number of fan")
@@ -119,6 +125,10 @@ def calculate_activation(lists_checked):
     # check first the fan without any training
     for i in lists_checked:
 
+        # fan2 and 4 for each case (=stimuli list)
+        fan2_case = []
+        fan4_case = []
+
         testing_selected = testing[(testing["pp_num"] == i) & (testing["condition"] == "target")]
 
         if LOCATION_FAN:
@@ -133,15 +143,18 @@ def calculate_activation(lists_checked):
             #print(fan4_list)
 
         original_list = testing_selected["test_sentence"].drop_duplicates().to_list()
-    
-        in_embeddings, stimuli_list, vocab_to_int, int_to_vocab = prepare_stim_embeddings(original_list, word_vectors)
+
+        in_embeddings, stimuli_list, vocab_to_int, int_to_vocab = prepare_stim_embeddings(original_list, attributes_dict)
         fan2, fan4 = check_embeddings(in_embeddings, stimuli_list, vocab_to_int, fan2_list, fan4_list, i)
-        fan2_final.append(fan2)
-        fan4_final.append(fan4)
+        fan2_case.append(fan2)
+        fan4_case.append(fan4)
+    
+        fan2_final.append(np.array(fan2_case).mean())
+        fan4_final.append(np.array(fan4_case).mean())
 
     return fan2_final, fan4_final
 
-def store_results(lists_checked, fan2_final, fan4_final, csv_filename, training="False"):
+def store_results(lists_checked, fan2_final, fan4_final, csv_filename, droprate=0, training="False"):
 
     df = pd.DataFrame({'Lists': lists_checked + ["mean", "std"], 'Fan2': fan2_final, 'Fan4': fan4_final, 'Fan2greater': [fan2_final[i] > fan4_final[i] for i in range(len(fan2_final))], 'Training': [training for _ in range(len(fan2_final))]})
 
@@ -150,20 +163,23 @@ def store_results(lists_checked, fan2_final, fan4_final, csv_filename, training=
     df.to_csv(csv_filename, mode='a', header=not file_exists, index=False)
 
 # load stimuli data
-testing = pd.read_csv("csv_files/online_testing_all.csv")
+testing = pd.read_csv("online_testing_all.csv")
 
-# load vectors
-# the model downloaded from https://aclanthology.org/W17-0237 (Dutch CoNLL17 corpus, skipgram)
-word_vectors = KeyedVectors.load_word2vec_format("39/model.bin", binary=True, limit=700000)  # Loads only top 700,000 words (covers everything in the fan experiment)
+# load attributes from output folder
+attributes = np.load("output/attributes.npy")
+with open("output/filtered_vocab.txt", "r", encoding="utf-8") as f:
+    vocab = [line.strip() for line in f]
+
+# Create dictionary: word -> attribute vector
+attributes_dict = {vocab[i]: attributes[i] for i in range(len(vocab))}
 
 # select stimuli lists that manipulate loc
-os.makedirs("csv_files", exist_ok=True)
 if LOCATION_FAN:
     lists_checked = [i for i in range(1, 100, 2)]
-    csv_filename = "csv_files/discrete_similarityfan_loc.csv"
+    csv_filename = "discrete_similarityfan_loc.csv"
 else:
     lists_checked = [i for i in range(2, 101, 2)]
-    csv_filename = "csv_files/discrete_similarityfan_pers.csv"
+    csv_filename = "discrete_similarityfan_pers.csv"
 
 # estimate activation without any training
 fan2_final, fan4_final = calculate_activation(lists_checked)

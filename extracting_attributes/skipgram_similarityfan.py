@@ -9,14 +9,13 @@ from collections import Counter
 import torch
 from torch import optim
 import pandas as pd
-from gensim.models import Word2Vec, KeyedVectors
 import numpy as np
 
 from skipgram import SkipGramNeg, NegativeSamplingLoss
 
 #specify whether fan for location manipulation should be modeled (using stimuli sets in which location fan is manipulated are used) or person fan shuld be modeled
-LOCATION_FAN = True
-#LOCATION_FAN = False # this will calculate person fan
+#LOCATION_FAN = True
+LOCATION_FAN = False # this will calculate person fan
 
 def train_skipgram(n_epochs, embedding_dim, original_list, word_vectors, droprate):
     
@@ -152,8 +151,7 @@ def check_embeddings(model, stimuli_list, list_number, myseed, n_epochs, vocab_t
     if remove_mistakes:
         df = pd.DataFrame({'Word': fan.keys(), 'Dot_product': fan.values(), 'Location_fan': [LOCATION_FAN for _ in range(len(fan))], 'Model_seed': [myseed for _ in range(len(fan))], 'n_epochs': [n_epochs for _ in range(len(fan))], 'List': [list_number for _ in range(len(fan))]})
 
-        os.makedirs("csv_files", exist_ok=True)
-        csv_filename = "csv_files/dotproducts_perword.csv"
+        csv_filename = "dotproducts_perword.csv"
 
         file_exists = os.path.exists(csv_filename)
 
@@ -267,20 +265,23 @@ def store_results(lists_checked, fan2_final, fan4_final, mistakes_final, csv_fil
     df.to_csv(csv_filename, mode='a', header=not file_exists, index=False)
 
 # load stimuli data
-testing = pd.read_csv("csv_files/online_testing_all.csv")
+testing = pd.read_csv("online_testing_all.csv")
 
-# load vectors
-# the model downloaded from https://aclanthology.org/W17-0237 (Dutch CoNLL17 corpus, skipgram)
-word_vectors = KeyedVectors.load_word2vec_format("39/model.bin", binary=True, limit=700000)  # Loads only top 700,000 words (covers everything in the fan experiment)
+# load vectors from output folder
+target_vectors = np.load("output/target_vectors.npy")
+with open("output/vocab.txt", "r", encoding="utf-8") as f:
+    vocab = [line.strip() for line in f]
+
+# Create dictionary: word -> vector
+word_vectors = {vocab[i]: target_vectors[i] for i in range(len(vocab))}
 
 # select stimuli lists that manipulate loc or pers
-os.makedirs("csv_files", exist_ok=True)
 if LOCATION_FAN:
     lists_checked = [i for i in range(1, 100, 2)]
-    csv_filename = "csv_files/similarityfan_loc.csv"
+    csv_filename = "similarityfan_loc.csv"
 else:
     lists_checked = [i for i in range(2, 101, 2)]
-    csv_filename = "csv_files/similarityfan_pers.csv"
+    csv_filename = "similarityfan_pers.csv"
 
 # estimate activation without any training
 fan2_final, fan4_final, mistakes_final = estimate_activation(lists_checked, epochs=[0], remove_mistakes=False)

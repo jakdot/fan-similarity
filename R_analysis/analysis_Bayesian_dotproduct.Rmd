@@ -1,0 +1,344 @@
+---
+title: "Fan Experiment Analysis - extra"
+author: "JD"
+date: "2025-02-04"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(tidybayes)
+library(brms)
+library(bayesplot)
+```
+
+```{r, include = FALSE}
+testing_all <- read_csv("../csv_files/online_testing_all.csv")
+
+```
+
+```{r}
+testing_all$charcount <- nchar(testing_all$test_sentence)
+```
+
+```{r}
+testing_raw <- read_csv("online_testing_all.csv")
+dotproduct <- read_csv("../csv_files/dotproducts_perword.csv")
+actr <- read_csv("../csv_files/actr_activations_perword.csv")
+print(dotproduct)
+print(actr)
+
+
+```
+
+
+# Clean up data
+
+Add information about fan size and fan type.
+
+```{r}
+
+# change rt from s into ms
+
+testing_all$rt <- testing_all$rt * 1000
+
+#testing_all <- testing_all %>% filter(rt > 0)
+
+testing_all$fan <- ifelse(testing_all$fan_loc == 4 | testing_all$fan_pers == 4, 1, -1)
+testing_all$type_fan <- NA
+testing_all$type_fan <- ifelse(testing_all$fan == 0, 0, ifelse(testing_all$fan_pers == 4, 1, -1))
+testing_all <- testing_all %>% group_by(test_sentence) %>% mutate(pers_word=as.character(strsplit(test_sentence, " ")[[1]][2]), loc_word=as.character(strsplit(test_sentence, " ")[[1]][6]))
+testing_all$pp_num <- as.numeric(testing_all$pp_num)
+testing_all$manipulated_fan <- ifelse(testing_all$pp_num %% 2 == 1, "location", "person" )
+testing_all$pp_num <- as.character(testing_all$pp_num)
+testing_all$fan_word <- ifelse(testing_all$manipulated_fan == "person", testing_all$pers_word, testing_all$loc_word)
+testing_all$fan_foil <- ifelse(testing_all$condition == "target", 0, ifelse(testing_all$fan == 1, 1, -1))
+testing_all$fan_target <- ifelse(testing_all$condition == "foil", 0, ifelse(testing_all$fan == 1, 1, -1))
+testing_all$type_condition <- ifelse(testing_all$condition == "target", 1, -1)
+
+print(testing_all, width=Inf)
+
+```
+
+Exclude unreasonably long and short trials.
+
+```{r}
+testing_all <- testing_all %>% filter(rt <= 90000 & rt > 200)
+
+```
+
+Exclude people with accuracy lower than 65 percent.
+
+```{r}
+testing_all <- testing_all %>% filter(rt > 0) # exclude rts that are 0
+testing_all %>% group_by(pp_num) %>% summarize(accuracy = mean(correct)) %>% filter(accuracy <= 0.65)
+testing_correct <-testing_all %>% filter(!(pp_num %in% c("43","65", "90"))) # excluding 43 and 65 because of low accuracy
+testing_correct %>% group_by(pp_num) %>% summarize(accuracy = mean(correct))
+
+testing_correct %>% group_by(fan_pers, fan_loc) %>% summarise(accuracy = mean(correct), se=sd(correct)/sqrt(length(correct)))
+
+```
+
+```{r}
+hist(testing_correct$rt, xlim = c(0, 15000), breaks = 500)
+
+```
+
+Exclude trials slower than 8.3 seconds (3 sample sd away from the sample mean).
+
+```{r}
+mean(testing_all$rt) + 3 * sd(testing_all$rt)
+
+testing_faster <- testing_all %>% filter(rt <= mean(testing_all$rt) + 3 * sd(testing_all$rt)) # keeping only trials with a rt below 3 st.d. away from the mean
+testing_faster_correct <- testing_correct %>% filter(rt <= mean(testing_all$rt) + 3 * sd(testing_all$rt)) # keeping only trials with a rt below 3 st.d. away from the mean
+
+length(testing_faster_correct$rt)/length(testing_all$rt)
+length(testing_correct$rt)/length(testing_all$rt)
+length(testing_faster_correct$rt)/length(testing_correct$rt)
+
+```
+
+# Merge data
+
+We include the dot product + log5 (i.e., pmi, which relates to spreading activation) to individual target-context words.
+
+```{r}
+
+dotproduct$fan_word <- dotproduct$Word
+dotproduct$pp_num <- dotproduct$List
+
+dotproduct <- dotproduct %>% group_by(pp_num, fan_word) %>% summarise(pmi = mean(Dot_product) + log(5))
+
+dotproduct$pp_num <- as.character(dotproduct$pp_num)
+
+print(dotproduct)
+
+merged_data <- inner_join(testing_faster_correct, dotproduct, by=c("fan_word", "pp_num"))
+
+actr$fan_word <- actr$Word
+actr$pp_num <- actr$List
+
+actr <- actr %>% group_by(pp_num, fan_word) %>% summarise(actr = mean(ACT_R_activation), Location_fan=first(Location_fan))
+
+# rescale activations, could also be for location and person separately
+actr$ACT_R_activation <- scale(actr$ACT_R_activation)
+#actr$actr[which(actr$Location_fan==TRUE)] <- scale(actr$actr[which(actr$Location_fan==TRUE)])
+#actr$actr[which(actr$Location_fan==FALSE)] <- scale(actr$actr[which(actr$Location_fan==FALSE)])
+
+actr$pp_num <- as.character(actr$pp_num)
+
+print(actr)
+
+merged_data <- inner_join(merged_data, actr, by=c("fan_word", "pp_num"))
+
+print(merged_data)
+```
+
+We subset by target (because these dot products were calculated on trained target-context pairs, 
+and only targets were trained).
+
+```{r}
+
+
+merged_data <- subset(merged_data, condition == "target")
+
+# some quick checks using lme4
+library(lme4)
+
+m1 <- lmer(log(rt) ~ pmi + (1|pp_num) + (1|fan_word), data=subset(merged_data, condition == "target"))
+print(summary(m1))
+
+m2 <- lmer(log(rt) ~ pmi + fan + (1|pp_num) + (1|fan_word), data=subset(merged_data, condition == "target"))
+print(summary(m2))
+
+m2.1 <- lmer(log(rt) ~ actr + fan + (1|pp_num) + (1|fan_word), data=subset(merged_data, condition == "target"))
+print(summary(m2.1))
+
+m3 <- lmer(log(rt) ~ pmi + actr + fan + (1|pp_num) + (1|fan_word), data=subset(merged_data, condition == "target"))
+print(summary(m3))
+
+resid(m1)
+m4 <- lm(resid(m1) ~ fan , data=subset(merged_data, condition == "target"))
+print(summary(m4))
+
+```
+
+# Bayesian modeling
+
+```{r}
+
+priors <- c(
+  prior(normal(0, 15), class = Intercept),
+  prior(normal(0, 2), class = b),
+  prior(normal(0, 2), class = sigma),
+  prior(normal(0, 2), class = sd),
+  prior(lkj(2), class = cor)
+)
+
+priors_binom <- c(
+  prior(normal(0, 2), class = Intercept),
+  prior(normal(0, 1), class = b),
+  prior(normal(0, 1), class = sd),
+  prior(lkj(2), class = cor)
+)
+
+modeling <- function(useddata, measure, effect, adaptdelta=FALSE) {
+
+  if (adaptdelta==FALSE) {
+fit_model <- brm(
+    paste0(measure, "~ 1 + ",effect," + fan + (1 + fan|pp_num) + (1 + fan|fan_word) "),# or (1|pers_word) + (1|loc_word)
+  data = useddata,
+  family = shifted_lognormal(),
+  prior = priors,
+  iter = 3000,
+  cores = 4
+)
+  } else {
+fit_model <- brm(
+    paste0(measure, "~ 1 + ",effect," + fan + (1 + fan|pp_num) + (1 + fan|fan_word)"),# or (1|pers_word) + (1|loc_word)
+  data = useddata,
+  family = shifted_lognormal(),
+  prior = priors,
+  control = list(adapt_delta = 0.95),
+  iter = 3000,
+  cores = 4
+)
+  }
+
+# output of the model
+
+fit_model
+
+}
+
+# full random effects structure
+
+modeling_full <- function(useddata, measure, effect, adaptdelta=FALSE) {
+
+  if (adaptdelta==FALSE) {
+fit_model <- brm(
+    paste0(measure, "~ 1 + ",effect," + fan  + (1 + fan|pp_num) + (1 + ",effect," + fan|fan_word)"),# or (1|pers_word) + (1|loc_word)
+  data = useddata,
+  family = shifted_lognormal(),
+  prior = priors,
+  iter = 3000,
+  cores = 4
+)
+  } else {
+fit_model <- brm(
+    paste0(measure, "~ 1 + ",effect," + fan  + (1 + fan|pp_num) + (1 + ",effect," + fan|fan_word)"),# or (1|pers_word) + (1|loc_word)
+  data = useddata,
+  family = shifted_lognormal(),
+  prior = priors,
+  control = list(adapt_delta = 0.999),
+  iter = 3000,
+  cores = 4
+)
+  }
+
+# output of the model
+
+fit_model
+
+}
+
+modeling_binom <- function(useddata, measure, effect, adaptdelta=FALSE) {
+
+  if (adaptdelta==FALSE) {
+    fit_model <- brm(paste0(measure, "~ 1 + ",effect," + fan  + (1 + ",effect," + fan|pp_num) + (1 + ",effect," + fan|fan_word)"),
+  data = useddata,
+  family = "bernoulli",
+  prior = priors_binom,
+  iter = 3000,
+  cores = 4
+)
+  } else {
+fit_model <- brm(paste0(measure, "~ 1 + ",effect," + fan  + (1 + ",effect," + fan|pp_num) + (1 + ",effect," + fan|fan_word)"),
+  data = useddata,
+  family = "bernoulli",
+  prior = priors_binom,
+  control = list(adapt_delta = 0.95),
+  iter = 3000,
+  cores = 4
+)
+  }
+
+# output of the model
+
+fit_model
+
+}
+
+
+```
+
+# Modeling
+
+## Accuracy models
+
+### Accuracy model 1
+
+```{r}
+
+#fan_accuracy <- modeling_binom(merged_data, "correct", adaptdelta = TRUE)
+#save(fan_accuracy, file="../stan_models/fan_accuracy.Rdata")
+load("../stan_models/fan_accuracy.Rdata")
+
+print(fan_accuracy, digits=3)
+
+```
+
+```{r, fig.width=10, figh.height=8, fig.fullwidth=TRUE}
+
+pp_check(fan_accuracy, ndraws=1000)
+
+pp_check(fan_accuracy, ndraws=1000, type = "stat", stat = "mean")
+
+```
+
+## RT models
+
+- using faster+correct subset
+- only looking at dataset with RTs smaller than 10.8 s and accuracy higher than 60 per cent.
+
+### RT model 1 - maximal working random effects
+
+I removed pmi for ppnum because that model had problems to converge even after increased adapt delta and maxtreedepth.
+
+```{r}
+fan_together_full <- modeling_full(merged_data, "rt", "pmi", adaptdelta=TRUE)
+save(fan_together_full, file="../stan_models/fan_together_full.Rdata")
+load("../stan_models/fan_together_full.Rdata")
+
+print(fan_together_full, digits=3)
+```
+
+```{r, fig.width=10, figh.height=8, fig.fullwidth=TRUE}
+
+pp_check(fan_together_full, ndraws=1000)
+
+pp_check(fan_together_full, ndraws=1000, type = "stat", stat = "mean")
+
+pp_check(fan_together_full, ndraws=1000, type = "stat", stat = "median")
+
+```
+
+### RT model 2 - maximal working random effects
+
+```{r}
+fan_together_full <- modeling_full(merged_data, "rt", "actr", adaptdelta=TRUE)
+save(fan_together_full, file="../stan_models/fan_together_full_actr.Rdata")
+load("../stan_models/fan_together_full_actr.Rdata")
+
+print(fan_together_full, digits=3)
+```
+
+```{r, fig.width=10, figh.height=8, fig.fullwidth=TRUE}
+
+pp_check(fan_together_full, ndraws=1000)
+
+pp_check(fan_together_full, ndraws=1000, type = "stat", stat = "mean")
+
+pp_check(fan_together_full, ndraws=1000, type = "stat", stat = "median")
+
+```

@@ -1,0 +1,161 @@
+---
+title: "Experiment fan: posterior plots"
+author: "JD"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r computetime,echo=FALSE}
+time <- Sys.time()
+```
+
+`r time`
+
+```{r packages,echo=FALSE,message = FALSE}
+
+library(tidyverse)
+library(readr)
+library(here)
+library(tidybayes)
+library(brms)
+library(bayesplot)
+
+```
+
+Prep functions.
+
+```{r, message = FALSE}
+
+draw_posteriors <- function(fit_model) {
+
+    # collect posterior samples
+    post_pars <- as_draws_df(fit_model) 
+
+    pars <- c("b_Intercept", "b_pmi", "b_fan")
+
+    plot_draws <- data.frame(.variable=c(rep("Intercept", length(post_pars$b_Intercept)), rep("DotProduct",  length(post_pars$b_Intercept)), rep("Fan",  length(post_pars$b_Intercept))), logms=c(post_pars[[pars[1]]], post_pars[[pars[2]]], post_pars[[pars[3]]]))
+
+# Prepare the plot
+
+  plot_draws
+
+}
+
+draw_posteriors2 <- function(fit_model) {
+
+    # collect posterior samples
+    post_pars <- as_draws_df(fit_model) 
+
+    pars <- c("b_Intercept", "b_pmi")
+
+    plot_draws <- data.frame(.variable=c(rep("Intercept", length(post_pars$b_Intercept)), rep("DotProduct",  length(post_pars$b_Intercept))), logms=c(post_pars[[pars[1]]], post_pars[[pars[2]]]))
+
+# Prepare the plot
+
+  plot_draws
+
+}
+
+draw_posteriors_actr <- function(fit_model) {
+
+    # collect posterior samples
+    post_pars <- as_draws_df(fit_model) 
+
+    pars <- c("b_Intercept", "b_actr", "b_fan")
+
+    plot_draws <- data.frame(.variable=c(rep("Intercept", length(post_pars$b_Intercept)), rep("ACT-R_approximations",  length(post_pars$b_Intercept)), rep("Fan",  length(post_pars$b_Intercept))), logms=c(post_pars[[pars[1]]], post_pars[[pars[2]]], post_pars[[pars[3]]]))
+
+# Prepare the plot
+
+  plot_draws
+
+}
+
+```
+
+# Figures
+
+```{r}
+
+load("../stan_models/fan_together_full.Rdata")
+
+print(fan_together_full, digits=3)
+
+plot_draws <- draw_posteriors(fan_together_full)
+    
+g1 <- ggplot(subset(plot_draws, .variable != "Intercept"), aes(y=.variable, x=logms, fill=after_stat(x>0))) +
+stat_halfeye(.width=.95, point_interval="mean_hdi", interval_size_range = c(1, 3))+
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  guides(fill = "none") +
+  labs(x="Log ms", y = NULL)+
+  scale_fill_manual(values = c("grey40", "lightblue")) + theme_bw(30)
+
+
+
+```
+
+```{r, fig.width=10, figh.height=8, fig.fullwidth=TRUE}
+
+g1
+
+ggsave("../figures/skipgram-fan.png", width=10, height=7)
+
+```
+
+```{r}
+
+load("../stan_models/pmi_model.Rdata")
+
+print(pmi_model, digits=3)
+
+plot_draws <- draw_posteriors2(pmi_model)
+    
+g1 <- ggplot(subset(plot_draws, .variable != "Intercept"), aes(y=.variable, x=logms, fill=after_stat(x>0))) +
+stat_halfeye(.width=.95, point_interval="mean_hdi", interval_size_range = c(1, 3))+
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  guides(fill = "none") +
+  labs(x="Log ms", y = NULL)+
+  scale_fill_manual(values = c("grey40", "lightblue")) + theme_bw(30)
+
+
+
+```
+
+```{r, fig.width=10, figh.height=8, fig.fullwidth=TRUE}
+
+g1
+
+ggsave("../figures/skipgram.png", width=10, height=7)
+
+```
+
+# Figures ACT-R
+
+```{r}
+
+load("../stan_models/fan_together_full_actr.Rdata")
+
+print(fan_together_full, digits=3)
+
+plot_draws <- draw_posteriors_actr(fan_together_full)
+    
+g1 <- ggplot(subset(plot_draws, .variable != "Intercept"), aes(y=.variable, x=logms, fill=after_stat(x>0))) +
+stat_halfeye(.width=.95, point_interval="mean_hdi", interval_size_range = c(1, 3))+
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  guides(fill = "none") +
+  labs(x="Log ms", y = NULL)+
+  scale_fill_manual(values = c("grey40", "lightblue")) + theme_bw(30)
+
+
+
+```
+
+```{r, fig.width=10, figh.height=8, fig.fullwidth=TRUE}
+
+g1
+
+ggsave("../figures/actr-fan.png", width=10, height=7)
+
+```
