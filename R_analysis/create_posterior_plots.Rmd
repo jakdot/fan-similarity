@@ -73,9 +73,30 @@ draw_posteriors_actr <- function(fit_model) {
 
 }
 
+draw_posteriors_actr2 <- function(fit_model) {
+
+    # collect posterior samples
+    post_pars <- as_draws_df(fit_model) 
+
+    pars <- c("b_Intercept", "b_actr")
+
+    plot_draws <- data.frame(.variable=c(rep("Intercept", length(post_pars$b_Intercept)), rep("ACT-R_approximations",  length(post_pars$b_Intercept))), logms=c(post_pars[[pars[1]]], post_pars[[pars[2]]]))
+
+# Prepare the plot
+
+  plot_draws
+
+}
+
 ```
 
 # Figures
+
+## Fan together full
+
+This is the model that includes pmi and fan, using the formula:
+
+`rt ~ 1 + pmi + fan + (1 + fan | pp_num) + (1 + pmi + fan | fan_word)`
 
 ```{r}
 
@@ -104,6 +125,119 @@ ggsave("../figures/skipgram-fan.png", width=10, height=7)
 
 ```
 
+
+```{r, fig.width=10, fig.height=7, fig.fullwidth=TRUE}
+
+testing_target <- read_csv("../csv_files/online_testing_modeled_data.csv") %>%
+  mutate(pp_num = as.character(pp_num))
+
+print(testing_target, n=10, width=Inf)
+summary(testing_target$rt)
+
+length(testing_target$pp_num)
+length(fan_together_full$data[,1]) # these two lengths must match
+
+model_data_fan_full <- bind_cols(testing_target %>% select(fan_loc, fan_pers, fan_target, rt_check=rt, fan_word_check=fan_word), fan_together_full$data) %>%
+  mutate(pmi_value = ifelse(pmi < quantile(pmi)[2], "low", ifelse(pmi > quantile(pmi)[4], "high", NA)))
+
+# checks that rt in model data and in testing target match; similarly for fan word
+stopifnot(all(round(model_data_fan_full$rt_check) == round(model_data_fan_full$rt)))
+stopifnot(all(model_data_fan_full$fan_word_check == model_data_fan_full$fan_word))
+
+# predictions, put in the long table
+yrep_full <- posterior_predict(fan_together_full, ndraws = 100)
+
+pred_long_full <- as.data.frame(yrep_full) %>%
+  mutate(draw = row_number()) %>%
+  pivot_longer(-draw, names_to = "obs_id", values_to = "rt_pred") %>%
+  mutate(obs_id = as.integer(sub("V", "", obs_id))) %>%
+  left_join(model_data_fan_full %>%
+              mutate(obs_id = row_number()) %>%
+              select(obs_id, pp_num, fan_loc, fan_pers, fan_target, fan_word, pmi_value),
+            by = "obs_id")
+
+pred_long_full
+
+pred_long_full %>% group_by(fan_target) %>% summarise(mean(rt_pred), median(rt_pred), sd(rt_pred))
+pred_long_full %>% group_by(pmi_value) %>% summarise(mean(rt_pred), median(rt_pred), sd(rt_pred))
+
+# fan_target (-1 / +1), all participants
+ggplot() +
+  geom_density(data = pred_long_full %>% mutate(source = paste0("pred_", fan_target)),
+               aes(x = rt_pred, group = interaction(draw, fan_target), color = source), alpha = 0.3) +
+  geom_density(data = model_data_fan_full %>% mutate(source = paste0("obs_", fan_target)),
+               aes(x = rt, color = source), linewidth = 1) +
+  scale_color_manual(values = c("obs_-1" = "darkblue", "pred_-1" = "lightblue",
+                                "obs_1"  = "darkred",  "pred_1"  = "lightcoral"),
+                     labels = c("obs_-1" = "observed fan 2", "pred_-1" = "predicted fan 2",
+                                "obs_1"  = "observed fan 4", "pred_1"  = "predicted fan 4")) +
+  guides(color = guide_legend(
+    override.aes = list(
+      fill = c("darkblue", "darkred", "lightblue", "lightcoral"),
+      linewidth = 0,
+      alpha = 1
+    ))) +
+  scale_x_continuous(limits = c(200, 6000)) +
+  labs(x = "RT (ms)", color = NULL) +
+  theme_bw(30) +
+  theme(legend.position = c(0.75, 0.75))
+
+ggsave("../figures/ppc-fan_together_full.png", width=10, height=7)
+
+# pmi_value (low / high), all participants
+ggplot() +
+  geom_density(data = pred_long_full %>% filter(!is.na(pmi_value)) %>% mutate(source = paste0("pred_", pmi_value)),
+               aes(x = rt_pred, group = interaction(draw, pmi_value), color = source), alpha = 0.3) +
+  geom_density(data = model_data_fan_full %>%  filter(!is.na(pmi_value)) %>%mutate(source = paste0("obs_", pmi_value)),
+               aes(x = rt, color = source), linewidth = 1) +
+  scale_color_manual(values = c("obs_low"  = "darkgreen",  "pred_low"  = "lightgreen",
+                                "obs_high" = "darkorchid", "pred_high" = "plum"),
+                     labels = c("obs_low"  = "observed low pmi",  "pred_low"  = "predicted low pmi",
+                                "obs_high" = "observed high pmi", "pred_high" = "predicted high pmi")) +
+  guides(color = guide_legend(
+    override.aes = list(
+      fill = c("darkgreen", "darkorchid", "lightgreen", "plum"),
+      linewidth = 0,
+      alpha = 1
+    ))) +
+  scale_x_continuous(limits = c(200, 6000)) +
+  labs(x = "RT (ms)", color = NULL) +
+  theme_bw(30) +
+  theme(legend.position = c(0.75, 0.75))
+
+ggsave("../figures/ppc-fan_together_full-pmi_value.png", width=10, height=7)
+
+boxplot_data <- bind_rows(
+  pred_long_full %>%
+    mutate(fan_target = factor(fan_target, levels = c(-1, 1), labels = c("fan 2", "fan 4"))) %>%
+    select(rt = rt_pred, fan_target) %>% mutate(type = "predicted"),
+  model_data_fan_full %>%
+    mutate(fan_target = factor(fan_target, levels = c(-1, 1), labels = c("fan 2", "fan 4"))) %>%
+    select(rt, fan_target) %>% mutate(type = "observed")
+)
+
+ggplot(boxplot_data, aes(x = fan_target, y = rt, fill = interaction(type, fan_target))) +
+  geom_boxplot(position = position_dodge(0.8)) +
+  scale_fill_manual(values = c("observed.fan 2"  = "darkblue",  "predicted.fan 2" = "lightblue",
+                                "observed.fan 4"  = "darkred",   "predicted.fan 4" = "lightcoral"),
+                    labels = c("observed.fan 2"  = "observed fan 2",  "predicted.fan 2" = "predicted fan 2",
+                               "observed.fan 4"  = "observed fan 4",  "predicted.fan 4" = "predicted fan 4")) +
+  scale_y_log10(limits = c(200, 6000)) +
+  labs(x = NULL, y = "RT (ms)", fill = NULL) +
+  theme_bw(30) +
+  theme(legend.position = c(0.85, 0.85))
+
+ggsave("../figures/boxplot-fan_together_full.png", width=10, height=7)
+
+```
+
+
+## Pmi model
+
+This is the model with pmi only and intercept-only effects.
+
+`rt ~ 1 + pmi + (1 | pp_num) + (1 | fan_word)`
+
 ```{r}
 
 load("../stan_models/pmi_model.Rdata")
@@ -119,8 +253,6 @@ stat_halfeye(.width=.95, point_interval="mean_hdi", interval_size_range = c(1, 3
   labs(x="Log ms", y = NULL)+
   scale_fill_manual(values = c("grey40", "lightblue")) + theme_bw(30)
 
-
-
 ```
 
 ```{r, fig.width=10, figh.height=8, fig.fullwidth=TRUE}
@@ -131,15 +263,127 @@ ggsave("../figures/skipgram.png", width=10, height=7)
 
 ```
 
+```{r, fig.width=10, fig.height=7, fig.fullwidth=TRUE}
+
+length(testing_target$pp_num)
+length(pmi_model$data[,1]) # these two lengths must match
+
+model_data_pmi <- bind_cols(testing_target %>% select(fan_loc, fan_pers, fan_target, rt_check=rt, fan_word_check=fan_word), pmi_model$data) %>%
+  mutate(pmi_value = ifelse(pmi < quantile(pmi)[2], "low", ifelse(pmi > quantile(pmi)[4], "high", NA)))
+
+model_data_pmi %>% group_by(fan_target) %>% summarise(mean(pmi), sd(pmi))
+model_data_pmi %>% group_by(fan_target) %>% summarise(mean(rt), sd(rt))
+model_data_pmi %>% group_by(pmi_value) %>% summarise(mean(rt), sd(rt))
+
+summary(model_data_pmi$pmi)
+
+quantile(model_data_pmi$pmi)[2]
+
+stopifnot(all(round(model_data_pmi$rt_check) == round(model_data_pmi$rt)))
+stopifnot(all(model_data_pmi$fan_word_check == model_data_pmi$fan_word))
+
+yrep_full <- posterior_predict(pmi_model, ndraws = 100)
+pred_long_full <- as.data.frame(yrep_full) %>%
+  mutate(draw = row_number()) %>%
+  pivot_longer(-draw, names_to = "obs_id", values_to = "rt_pred") %>%
+  mutate(obs_id = as.integer(sub("V", "", obs_id))) %>%
+  left_join(model_data_pmi %>%
+              mutate(obs_id = row_number()) %>%
+              select(obs_id, pp_num, fan_loc, fan_pers, fan_target, fan_word, pmi_value),
+            by = "obs_id")
+
+pred_long_full %>% group_by(pmi_value) %>% summarise(mean(rt_pred), sd(rt_pred))
+pred_long_full %>% group_by(fan_target) %>% summarise(mean(rt_pred), sd(rt_pred))
+
+
+# fan_target (-1 / +1), all participants
+ggplot() +
+  geom_density(data = pred_long_full %>% mutate(source = paste0("pred_", fan_target)),
+               aes(x = rt_pred, group = interaction(draw, fan_target), color = source), alpha = 0.3) +
+  geom_density(data = model_data_pmi %>% mutate(source = paste0("obs_", fan_target)),
+               aes(x = rt, color = source), linewidth = 1) +
+  scale_color_manual(values = c("obs_-1" = "darkblue", "pred_-1" = "lightblue",
+                                "obs_1"  = "darkred",  "pred_1"  = "lightcoral"),
+                     labels = c("obs_-1" = "observed fan 2", "pred_-1" = "predicted fan 2",
+                                "obs_1"  = "observed fan 4", "pred_1"  = "predicted fan 4")) +
+  guides(color = guide_legend(
+    override.aes = list(
+      fill = c("darkblue", "darkred", "lightblue", "lightcoral"),
+      linewidth = 0,
+      alpha = 1
+    ))) +
+  scale_x_continuous(limits = c(200, 6000)) +
+  labs(x = "RT (ms)", color = NULL) +
+  theme_bw(30) +
+  theme(legend.position = c(0.75, 0.75))
+
+ggsave("../figures/ppc-pmi_model.png", width=10, height=7)
+
+# pmi_value (low / high), all participants
+ggplot() +
+  geom_density(data = pred_long_full %>% filter(!is.na(pmi_value)) %>% mutate(source = paste0("pred_", pmi_value)),
+               aes(x = rt_pred, group = interaction(draw, pmi_value), color = source), alpha = 0.3) +
+  geom_density(data = model_data_pmi %>%  filter(!is.na(pmi_value)) %>%mutate(source = paste0("obs_", pmi_value)),
+               aes(x = rt, color = source), linewidth = 1) +
+  scale_color_manual(values = c("obs_low"  = "darkgreen",  "pred_low"  = "lightgreen",
+                                "obs_high" = "darkorchid", "pred_high" = "plum"),
+                     labels = c("obs_low"  = "observed low pmi",  "pred_low"  = "predicted low pmi",
+                                "obs_high" = "observed high pmi", "pred_high" = "predicted high pmi")) +
+  guides(color = guide_legend(
+    override.aes = list(
+      fill = c("darkgreen", "darkorchid", "lightgreen", "plum"),
+      linewidth = 0,
+      alpha = 1
+    ))) +
+  scale_x_continuous(limits = c(200, 6000)) +
+  labs(x = "RT (ms)", color = NULL) +
+  theme_bw(30) +
+  theme(legend.position = c(0.75, 0.75))
+
+ggsave("../figures/ppc-pmi_model-pmi_value.png", width=10, height=7)
+
+# boxplot: observed vs predicted for fan 2 and fan 4
+boxplot_data <- bind_rows(
+  pred_long_full %>%
+    mutate(fan_target = factor(fan_target, levels = c(-1, 1), labels = c("fan 2", "fan 4"))) %>%
+    select(rt = rt_pred, fan_target) %>%
+    mutate(type = "predicted"),
+  model_data_pmi %>%
+    mutate(fan_target = factor(fan_target, levels = c(-1, 1), labels = c("fan 2", "fan 4"))) %>%
+    select(rt, fan_target) %>%
+    mutate(type = "observed")
+)
+
+ggplot(boxplot_data, aes(x = fan_target, y = rt, fill = interaction(type, fan_target))) +
+  geom_boxplot(position = position_dodge(0.8)) +
+  scale_fill_manual(values = c("observed.fan 2"  = "darkblue",  "predicted.fan 2" = "lightblue",
+                                "observed.fan 4"  = "darkred",   "predicted.fan 4" = "lightcoral"),
+                    labels = c("observed.fan 2"  = "observed fan 2",  "predicted.fan 2" = "predicted fan 2",
+                               "observed.fan 4"  = "observed fan 4",  "predicted.fan 4" = "predicted fan 4")) +
+  scale_y_log10(limits = c(200, 6000)) +
+  labs(x = NULL, y = "RT (ms)", fill = NULL) +
+  theme_bw(30) +
+  theme(legend.position = c(0.85, 0.85))
+
+ggsave("../figures/boxplot-pmi_model.png", width=10, height=7)
+
+```
+
 # Figures ACT-R
+
+## Fan together full act-r
+
+The model with act-r and fan. The formula:
+
+`rt ~ 1 + actr + fan + (1 + fan | pp_num) + (1 + actr + fan | fan_word)`
 
 ```{r}
 
 load("../stan_models/fan_together_full_actr.Rdata")
 
-print(fan_together_full, digits=3)
+print(fan_together_full_actr, digits=3)
 
-plot_draws <- draw_posteriors_actr(fan_together_full)
+plot_draws <- draw_posteriors_actr(fan_together_full_actr)
     
 g1 <- ggplot(subset(plot_draws, .variable != "Intercept"), aes(y=.variable, x=logms, fill=after_stat(x>0))) +
 stat_halfeye(.width=.95, point_interval="mean_hdi", interval_size_range = c(1, 3))+
@@ -158,4 +402,200 @@ g1
 
 ggsave("../figures/actr-fan.png", width=10, height=7)
 
+```
+
+```{r, fig.width=10, fig.height=7, fig.fullwidth=TRUE}
+
+model_data_actr_full <- bind_cols(testing_target %>% select(fan_loc, fan_pers, fan_target, rt_check=rt, fan_word_check=fan_word), fan_together_full_actr$data)
+
+stopifnot(all(round(model_data_actr_full$rt_check) == round(model_data_actr_full$rt)))
+stopifnot(all(model_data_actr_full$fan_word_check == model_data_actr_full$fan_word))
+
+yrep_full <- posterior_predict(fan_together_full_actr, ndraws = 100)
+pred_long_actr_full <- as.data.frame(yrep_full) %>%
+  mutate(draw = row_number()) %>%
+  pivot_longer(-draw, names_to = "obs_id", values_to = "rt_pred") %>%
+  mutate(obs_id = as.integer(sub("V", "", obs_id))) %>%
+  left_join(model_data_actr_full %>%
+              mutate(obs_id = row_number()) %>%
+              select(obs_id, pp_num, fan_loc, fan_pers, fan_target, fan_word),
+            by = "obs_id")
+
+ggplot() +
+  geom_density(data = pred_long_actr_full %>% mutate(source = paste0("pred_", fan_target)),
+               aes(x = rt_pred, group = interaction(draw, fan_target), color = source), alpha = 0.3) +
+  geom_density(data = model_data_actr_full %>% mutate(source = paste0("obs_", fan_target)),
+               aes(x = rt, color = source), linewidth = 1) +
+  scale_color_manual(values = c("obs_-1" = "darkblue", "pred_-1" = "lightblue",
+                                "obs_1"  = "darkred",  "pred_1"  = "lightcoral"),
+                     labels = c("obs_-1" = "observed fan 2", "pred_-1" = "predicted fan 2",
+                                "obs_1"  = "observed fan 4", "pred_1"  = "predicted fan 4")) +
+  guides(color = guide_legend(
+    override.aes = list(
+      fill = c("darkblue", "darkred", "lightblue", "lightcoral"),
+      linewidth = 0,
+      alpha = 1
+    ))) +
+  scale_x_continuous(limits = c(200, 6000)) +
+  labs(x = "RT (ms)", color = NULL) +
+  theme_bw(30) +
+  theme(legend.position = c(0.75, 0.75))
+
+ggsave("../figures/ppc-fan_together_full_actr.png", width=10, height=7)
+
+boxplot_data <- bind_rows(
+  pred_long_actr_full %>%
+    mutate(fan_target = factor(fan_target, levels = c(-1, 1), labels = c("fan 2", "fan 4"))) %>%
+    select(rt = rt_pred, fan_target) %>% mutate(type = "predicted"),
+  model_data_actr_full %>%
+    mutate(fan_target = factor(fan_target, levels = c(-1, 1), labels = c("fan 2", "fan 4"))) %>%
+    select(rt, fan_target) %>% mutate(type = "observed")
+)
+
+ggplot(boxplot_data, aes(x = fan_target, y = rt, fill = interaction(type, fan_target))) +
+  geom_boxplot(position = position_dodge(0.8)) +
+  scale_fill_manual(values = c("observed.fan 2"  = "darkblue",  "predicted.fan 2" = "lightblue",
+                                "observed.fan 4"  = "darkred",   "predicted.fan 4" = "lightcoral"),
+                    labels = c("observed.fan 2"  = "observed fan 2",  "predicted.fan 2" = "predicted fan 2",
+                               "observed.fan 4"  = "observed fan 4",  "predicted.fan 4" = "predicted fan 4")) +
+  scale_y_log10(limits = c(200, 6000)) +
+  labs(x = NULL, y = "RT (ms)", fill = NULL) +
+  theme_bw(30) +
+  theme(legend.position = c(0.85, 0.85))
+
+ggsave("../figures/boxplot-fan_together_full_actr.png", width=10, height=7)
+
+```
+
+## ACT-R model
+
+The model with just actr.
+
+`rt ~ 1 + actr + (1 | pp_num) + (1 | fan_word)`
+
+```{r}
+
+load("../stan_models/actr_model.Rdata")
+
+print(actr_model, digits=3)
+
+plot_draws <- draw_posteriors_actr2(actr_model)
+    
+g1 <- ggplot(subset(plot_draws, .variable != "Intercept"), aes(y=.variable, x=logms, fill=after_stat(x>0))) +
+stat_halfeye(.width=.95, point_interval="mean_hdi", interval_size_range = c(1, 3))+
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  guides(fill = "none") +
+  labs(x="Log ms", y = NULL)+
+  scale_fill_manual(values = c("grey40", "lightblue")) + theme_bw(30)
+
+```
+
+```{r, fig.width=10, figh.height=8, fig.fullwidth=TRUE}
+
+g1
+
+ggsave("../figures/actr.png", width=10, height=7)
+
+```
+
+```{r, fig.width=10, fig.height=7, fig.fullwidth=TRUE}
+
+model_data_actr <- bind_cols(testing_target %>% select(fan_loc, fan_pers, fan_target, rt_check=rt, fan_word_check=fan_word), actr_model$data)
+
+stopifnot(all(round(model_data_actr$rt_check) == round(model_data_actr$rt)))
+stopifnot(all(model_data_actr$fan_word_check == model_data_actr$fan_word))
+
+yrep_full <- posterior_predict(actr_model, ndraws = 100)
+pred_long_actr <- as.data.frame(yrep_full) %>%
+  mutate(draw = row_number()) %>%
+  pivot_longer(-draw, names_to = "obs_id", values_to = "rt_pred") %>%
+  mutate(obs_id = as.integer(sub("V", "", obs_id))) %>%
+  left_join(model_data_actr %>%
+              mutate(obs_id = row_number()) %>%
+              select(obs_id, pp_num, fan_loc, fan_pers, fan_target, fan_word),
+            by = "obs_id")
+
+pred_long_actr %>% group_by(fan_target) %>% summarise(mean(rt_pred), sd(rt_pred))
+
+ggplot() +
+  geom_density(data = pred_long_actr %>% mutate(source = paste0("pred_", fan_target)),
+               aes(x = rt_pred, group = interaction(draw, fan_target), color = source), alpha = 0.3) +
+  geom_density(data = model_data_actr %>% mutate(source = paste0("obs_", fan_target)),
+               aes(x = rt, color = source), linewidth = 1) +
+  scale_color_manual(values = c("obs_-1" = "darkblue", "pred_-1" = "lightblue",
+                                "obs_1"  = "darkred",  "pred_1"  = "lightcoral"),
+                     labels = c("obs_-1" = "observed fan 2", "pred_-1" = "predicted fan 2",
+                                "obs_1"  = "observed fan 4", "pred_1"  = "predicted fan 4")) +
+  guides(color = guide_legend(
+    override.aes = list(
+      fill = c("darkblue", "darkred", "lightblue", "lightcoral"),
+      linewidth = 0,
+      alpha = 1
+    ))) +
+  scale_x_continuous(limits = c(200, 6000)) +
+  labs(x = "RT (ms)", color = NULL) +
+  theme_bw(30) +
+  theme(legend.position = c(0.75, 0.75))
+
+ggsave("../figures/ppc-actr_model.png", width=10, height=7)
+
+
+boxplot_data <- bind_rows(
+  pred_long_actr %>%
+    mutate(fan_target = factor(fan_target, levels = c(-1, 1), labels = c("fan 2", "fan 4"))) %>%
+    select(rt = rt_pred, fan_target) %>% mutate(type = "predicted"),
+  model_data_actr %>%
+    mutate(fan_target = factor(fan_target, levels = c(-1, 1), labels = c("fan 2", "fan 4"))) %>%
+    select(rt, fan_target) %>% mutate(type = "observed")
+)
+
+ggplot(boxplot_data, aes(x = fan_target, y = rt, fill = interaction(type, fan_target))) +
+  geom_boxplot(position = position_dodge(0.8)) +
+  scale_fill_manual(values = c("observed.fan 2"  = "darkblue",  "predicted.fan 2" = "lightblue",
+                                "observed.fan 4"  = "darkred",   "predicted.fan 4" = "lightcoral"),
+                    labels = c("observed.fan 2"  = "observed fan 2",  "predicted.fan 2" = "predicted fan 2",
+                               "observed.fan 4"  = "observed fan 4",  "predicted.fan 4" = "predicted fan 4")) +
+  scale_y_log10(limits = c(200, 6000)) +
+  labs(x = NULL, y = "RT (ms)", fill = NULL) +
+  theme_bw(30) +
+  theme(legend.position = c(0.85, 0.85))
+
+ggsave("../figures/boxplot-actr_model.png", width=10, height=7)
+
+```
+
+One quantile plot. We are not using these. They are a bit hard to make sense of (we take mean for rt_pred, so there are no individual observations here).
+
+```{r}
+qbin_assignment <- model_data_actr %>%
+  mutate(obs_id = row_number(), quantile_bin = ntile(rt, 5)) %>%
+  select(obs_id, quantile_bin)
+
+obs_quant <- model_data_actr %>%
+  mutate(quantile_bin = ntile(rt, 5), fan_target = as.factor(fan_target)) %>%
+  group_by(fan_target, quantile_bin) %>%
+  summarise(rt = mean(rt), .groups = "drop")
+
+pred_quant <- pred_long_actr %>%
+  left_join(qbin_assignment, by = "obs_id") %>%
+  mutate(fan_target = as.factor(fan_target)) %>%
+  group_by(fan_target, quantile_bin, draw) %>%
+  summarise(rt = mean(rt_pred), .groups = "drop")
+
+ggplot() +
+  geom_boxplot(data = pred_quant,
+               aes(x = quantile_bin, y = rt, group = interaction(quantile_bin, fan_target), fill = fan_target),
+               alpha = 0.5, color = NA) +
+  geom_line(data  = obs_quant, aes(x = quantile_bin, y = rt, color = fan_target)) +
+  geom_point(data = obs_quant, aes(x = quantile_bin, y = rt, color = fan_target), size = 3) +
+  scale_fill_manual(values  = c("-1" = "lightblue",  "1" = "lightcoral"),
+                    labels  = c("-1" = "predicted fan 2", "1" = "predicted fan 4")) +
+  scale_color_manual(values = c("-1" = "darkblue",   "1" = "darkred"),
+                     labels = c("-1" = "observed fan 2",  "1" = "observed fan 4")) +
+  scale_y_log10() +
+  labs(x = "Quantile bin", y = "Mean RT (ms)", fill = NULL, color = NULL) +
+  theme_bw(30) +
+  theme(legend.position = c(0.2, 0.8))
+
+ggsave("../figures/quantiles-actr_model.png", width=10, height=7)
 ```

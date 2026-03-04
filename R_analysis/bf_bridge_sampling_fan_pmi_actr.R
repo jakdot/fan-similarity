@@ -85,9 +85,11 @@ print(merged_data)
 # We subset by target (because these dot products were calculated on trained target-context pairs, 
 # and only targets were trained).
 
-merged_data$actr <- scale(merged_data$actr)
+merged_data$actr <- scale(merged_data$actr)[,1]
 
 merged_data <- subset(merged_data, condition == "target")
+
+write_csv(merged_data, file="../csv_files/online_testing_modeled_data.csv")
 
 # Bayesian modeling
 
@@ -250,7 +252,7 @@ save(pmi_model, file="../stan_models/pmi_model.Rdata")
 load("../stan_models/pmi_model.Rdata")
 print(pmi_model, digits=3)
 
-# pmi full has problems with convergence; we use the pmi model
+# actr full has problems with convergence; we use the actr model
 actr_model <- modeling_actr(merged_data, "rt", adaptdelta=FALSE)
 save(actr_model, file="../stan_models/actr_model.Rdata")
 #load("../stan_models/actr_model.Rdata")

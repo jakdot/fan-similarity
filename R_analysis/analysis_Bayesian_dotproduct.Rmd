@@ -15,14 +15,10 @@ library(bayesplot)
 ```{r, include = FALSE}
 testing_all <- read_csv("../csv_files/online_testing_all.csv")
 
-```
-
-```{r}
 testing_all$charcount <- nchar(testing_all$test_sentence)
 ```
 
 ```{r}
-testing_raw <- read_csv("online_testing_all.csv")
 dotproduct <- read_csv("../csv_files/dotproducts_perword.csv")
 actr <- read_csv("../csv_files/actr_activations_perword.csv")
 print(dotproduct)
@@ -87,10 +83,12 @@ hist(testing_correct$rt, xlim = c(0, 15000), breaks = 500)
 Exclude trials slower than 8.3 seconds (3 sample sd away from the sample mean).
 
 ```{r}
-mean(testing_all$rt) + 3 * sd(testing_all$rt)
+mean(testing_all$rt) + 2 * sd(testing_all$rt)
 
-testing_faster <- testing_all %>% filter(rt <= mean(testing_all$rt) + 3 * sd(testing_all$rt)) # keeping only trials with a rt below 3 st.d. away from the mean
-testing_faster_correct <- testing_correct %>% filter(rt <= mean(testing_all$rt) + 3 * sd(testing_all$rt)) # keeping only trials with a rt below 3 st.d. away from the mean
+testing_faster <- testing_all %>% filter(rt <= mean(testing_all$rt) + 2 * sd(testing_all$rt)) # keeping only trials with a rt below 3 st.d. away from the mean
+testing_faster_correct <- testing_correct %>% filter(rt <= mean(testing_all$rt) + 2 * sd(testing_all$rt)) # keeping only trials with a rt below 3 st.d. away from the mean
+
+summary(testing_faster_correct$rt)
 
 length(testing_faster_correct$rt)/length(testing_all$rt)
 length(testing_correct$rt)/length(testing_all$rt)
@@ -121,7 +119,7 @@ actr$pp_num <- actr$List
 actr <- actr %>% group_by(pp_num, fan_word) %>% summarise(actr = mean(ACT_R_activation), Location_fan=first(Location_fan))
 
 # rescale activations, could also be for location and person separately
-actr$ACT_R_activation <- scale(actr$ACT_R_activation)
+actr$actr <- scale(actr$actr)
 #actr$actr[which(actr$Location_fan==TRUE)] <- scale(actr$actr[which(actr$Location_fan==TRUE)])
 #actr$actr[which(actr$Location_fan==FALSE)] <- scale(actr$actr[which(actr$Location_fan==FALSE)])
 
@@ -139,26 +137,28 @@ and only targets were trained).
 
 ```{r}
 
-
 merged_data <- subset(merged_data, condition == "target")
 
 # some quick checks using lme4
 library(lme4)
 
-m1 <- lmer(log(rt) ~ pmi + (1|pp_num) + (1|fan_word), data=subset(merged_data, condition == "target"))
+m1 <- lmer(log(rt) ~ pmi + (1|pp_num) + (1|fan_word), data=merged_data)
 print(summary(m1))
 
-m2 <- lmer(log(rt) ~ pmi + fan + (1|pp_num) + (1|fan_word), data=subset(merged_data, condition == "target"))
+m2 <- lmer(log(rt) ~ pmi + fan + (1|pp_num) + (1|fan_word), data=merged_data)
 print(summary(m2))
 
-m2.1 <- lmer(log(rt) ~ actr + fan + (1|pp_num) + (1|fan_word), data=subset(merged_data, condition == "target"))
+m2.1 <- lmer(log(rt) ~ actr + fan + (1|pp_num) + (1|fan_word), data=merged_data)
 print(summary(m2.1))
 
-m3 <- lmer(log(rt) ~ pmi + actr + fan + (1|pp_num) + (1|fan_word), data=subset(merged_data, condition == "target"))
+m3 <- lmer(log(rt) ~ pmi + actr + fan + (1|pp_num) + (1|fan_word), data=merged_data)
 print(summary(m3))
+#resid(m1)
 
-resid(m1)
-m4 <- lm(resid(m1) ~ fan , data=subset(merged_data, condition == "target"))
+mbase <- lmer(log(rt) ~ fan + (1|pp_num) + (1|fan_word), data=merged_data)
+print(summary(mbase))
+
+m4 <- lm(resid(mbase) ~ pmi , data=merged_data)
 print(summary(m4))
 
 ```
@@ -326,19 +326,19 @@ pp_check(fan_together_full, ndraws=1000, type = "stat", stat = "median")
 ### RT model 2 - maximal working random effects
 
 ```{r}
-fan_together_full <- modeling_full(merged_data, "rt", "actr", adaptdelta=TRUE)
-save(fan_together_full, file="../stan_models/fan_together_full_actr.Rdata")
+fan_together_full_actr <- modeling_full(merged_data, "rt", "actr", adaptdelta=TRUE)
+save(fan_together_full_actr, file="../stan_models/fan_together_full_actr.Rdata")
 load("../stan_models/fan_together_full_actr.Rdata")
 
-print(fan_together_full, digits=3)
+print(fan_together_full_actr, digits=3)
 ```
 
 ```{r, fig.width=10, figh.height=8, fig.fullwidth=TRUE}
 
-pp_check(fan_together_full, ndraws=1000)
+pp_check(fan_together_full_actr, ndraws=1000)
 
-pp_check(fan_together_full, ndraws=1000, type = "stat", stat = "mean")
+pp_check(fan_together_full_actr, ndraws=1000, type = "stat", stat = "mean")
 
-pp_check(fan_together_full, ndraws=1000, type = "stat", stat = "median")
+pp_check(fan_together_full_actr, ndraws=1000, type = "stat", stat = "median")
 
 ```
